@@ -96,6 +96,3 @@ function Synchronizer(source, destination, ignored, ignoreInitialFire) {
     });
   }
 }
-
-new Synchronizer('dir1', 'dir2').watch();
-new Synchronizer('dir2', 'dir1', null, true).watch();
