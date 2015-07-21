@@ -1,0 +1,24 @@
+{
+  "name": "two-way-files-synch",
+  "version": "0.1.0",
+  "description": "Two-way files synch nodejs plugin",
+  "main": "two-way-files-synch.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/likerRr/two-way-files-synch.git"
+  },
+  "author": "Alexey Lizurchik",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/likerRr/two-way-files-synch/issues"
+  },
+  "homepage": "https://github.com/likerRr/two-way-files-synch#readme",
+  "dependencies": {
+    "chalk": "^1.1.0",
+    "chokidar": "^1.0.5",
+    "fs-extra": "^0.22.1"
+  }
+}
