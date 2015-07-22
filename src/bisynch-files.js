@@ -4,25 +4,31 @@ var path = require('path');
 var fse = require('fs-extra');
 var chokidar = require('chokidar');
 var logger = require('./lib/log');
-// TODO implement
 var utils = require('./lib/utils');
 
-
-function initVar(param, fnDefault, fnParam) {
-  if (param !== undefined) {
-    return (typeof fnParam === 'function') ? fnParam(param) : param;
-  }
-
-  return (typeof fnDefault === 'function') ? fnDefault() : fnDefault;
+function handleSimpleError(err) {
+  return logger.error(err);
 }
 
+function handleFseError(evt, inPath, err) {
+  return logger.error(inPath + ' on ' + evt + ', ' + err);
+}
+
+/**
+ *
+ * @param source
+ * @param destination
+ * @param ignored
+ * @param ignoreInitialFire
+ * @constructor
+ */
 function Synchronizer(source, destination, ignored, ignoreInitialFire) {
   var self = this;
 
   self.source = path.normalize(source);
   self.destination = path.normalize(destination);
   self.ignored = [/__jb_/];
-  self.ignoreInitialFire = initVar(ignoreInitialFire, false);
+  self.ignoreInitialFire = utils.set(ignoreInitialFire, false);
 
   function init() {
     if (Array.isArray(ignored)) {
@@ -43,27 +49,30 @@ function Synchronizer(source, destination, ignored, ignoreInitialFire) {
     });
   }
 
+  self.getWatchOptions = function() {
+    return {
+      ignorePermissionErrors: true,
+      ignored: self.ignored,
+      ignoreInitial: self.ignoreInitialFire,
+      alwaysStat: true
+    };
+  };
+
   self.pathSubstitution = function(inPath) {
     return inPath.replace(self.source, self.destination);
   };
 
-  function handleSimpleError(err) {
-    return logger.error(err);
-  }
-
-  function handleFseError(evt, inPath, err) {
-    return logger.error(inPath + ' on ' + evt + ', ' + err);
-  }
-
   self.watch = function() {
-    chokidar.watch(self.source, {ignored: self.ignored})
+    chokidar.watch(self.source, self.getWatchOptions())
       .on('all', function(evt, inPath) {
+        var fseError = handleFseError.bind(handleFseError, evt, inPath);
+
         switch (evt) {
           case 'add':
           case 'addDir':
             fse.copy(inPath, self.pathSubstitution(inPath), function(err) {
               if (err) {
-                return handleFseError(evt, inPath, err);
+                return fseError(err);
               }
               logger.added('+ ' + utils.flattenPath(inPath) + ' <=> ' + utils.flattenPath(self.pathSubstitution(inPath)));
             });
@@ -71,11 +80,11 @@ function Synchronizer(source, destination, ignored, ignoreInitialFire) {
           case 'change':
             fse.readFile(inPath, 'utf8', function (errRead, data) {
               if (errRead) {
-                return handleFseError(evt, inPath, errRead);
+                return fseError(errRead);
               }
               fse.outputFile(self.pathSubstitution(inPath), data, function(errOut) {
                 if (errOut) {
-                  return handleFseError(evt, inPath, errOut);
+                  return fseError(errOut);
                 }
                 logger.changed('* ' + utils.flattenPath(inPath) + ' <=> ' + utils.flattenPath(self.pathSubstitution(inPath)));
               });
@@ -85,13 +94,13 @@ function Synchronizer(source, destination, ignored, ignoreInitialFire) {
           case 'unlinkDir':
             fse.remove(self.pathSubstitution(inPath), function(err) {
               if (err) {
-                return handleFseError(evt, inPath, err);
+                return fseError(err);
               }
               logger.unlinked('- ' + utils.flattenPath(inPath) + ' <=> ' + utils.flattenPath(self.pathSubstitution(inPath)));
             });
             break;
           default:
-            logger.log(evt + ' ' + inPath);
+            logger.log('-> ' + evt + ' ' + inPath);
         }
       })
     .on('ready', function() {
@@ -105,6 +114,11 @@ function Synchronizer(source, destination, ignored, ignoreInitialFire) {
   init();
 }
 
-new Synchronizer('dir1', 'dir2').watch();
-
-module.exports = Synchronizer;
+module.exports.watch = function(source, destination, ignored) {
+  fse.emptyDir(destination, function(err) {
+    if (!err) {
+      (new Synchronizer(source, destination, ignored)).watch();
+      (new Synchronizer(destination, source, ignored, true)).watch();
+    }
+  });
+};

@@ -9,7 +9,7 @@ var path = require('path');
  * @returns {String}
  */
 module.exports.flattenPath = function(fp, maxNest) {
-  maxNest = maxNest || 8;
+  maxNest = maxNest || 5;
   var pathArr = fp.split(path.sep),
     newPath = [],
     pathLen = pathArr.length,
@@ -26,4 +26,19 @@ module.exports.flattenPath = function(fp, maxNest) {
   Array.prototype.push.apply(newPath, pathArr.splice(-half));
 
   return newPath.join(path.sep);
+};
+
+/**
+ * Sets the variable or default value
+ * @param param
+ * @param defaultParam
+ * @param fnParam
+ * @returns {*}
+ */
+module.exports.set = function(param, defaultParam, fnParam) {
+  if (param !== undefined) {
+    return (typeof fnParam === 'function') ? fnParam(param) : param;
+  }
+
+  return (typeof defaultParam === 'function') ? defaultParam() : defaultParam;
 };
