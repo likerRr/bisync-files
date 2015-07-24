@@ -1,7 +1,9 @@
 "use strict";
 
 var path = require('path');
+var pathExists = require('path-exists');
 var fse = require('fs-extra');
+var fs = require('fs');
 var chokidar = require('chokidar');
 var logger = require('./lib/log');
 var utils = require('./lib/utils');
@@ -29,6 +31,8 @@ function Synchronizer(source, destination, ignored, ignoreInitialFire) {
   self.destination = path.normalize(destination);
   self.ignored = [/__jb_/];
   self.ignoreInitialFire = utils.set(ignoreInitialFire, false);
+  self.initialScanCount = 0;
+  self.showInitialScanCounter = true;
 
   function init() {
     if (Array.isArray(ignored)) {
@@ -62,49 +66,83 @@ function Synchronizer(source, destination, ignored, ignoreInitialFire) {
     return inPath.replace(self.source, self.destination);
   };
 
-  self.watch = function() {
+  self.watch = function(onReady) {
     chokidar.watch(self.source, self.getWatchOptions())
-      .on('all', function(evt, inPath) {
-        var fseError = handleFseError.bind(handleFseError, evt, inPath);
+    .on('all', function(evt, inPath, statsWatch) {
+      var fseError = handleFseError.bind(handleFseError, evt, inPath);
 
-        switch (evt) {
-          case 'add':
-          case 'addDir':
-            fse.copy(inPath, self.pathSubstitution(inPath), function(err) {
-              if (err) {
-                return fseError(err);
-              }
-              logger.added('+ ' + utils.flattenPath(inPath) + ' <=> ' + utils.flattenPath(self.pathSubstitution(inPath)));
-            });
-            break;
-          case 'change':
-            fse.readFile(inPath, 'utf8', function (errRead, data) {
-              if (errRead) {
-                return fseError(errRead);
-              }
-              fse.outputFile(self.pathSubstitution(inPath), data, function(errOut) {
-                if (errOut) {
-                  return fseError(errOut);
+      switch (evt) {
+        case 'add':
+        case 'addDir':
+          pathExists(self.pathSubstitution(inPath), function(errPath, isExists) {
+            if (errPath) {
+              return fseError(errPath);
+            }
+
+            if (!isExists) {
+              fse.copy(inPath, self.pathSubstitution(inPath), function (errCopy) {
+                if (errCopy) {
+                  return fseError(errCopy);
                 }
-                logger.changed('* ' + utils.flattenPath(inPath) + ' <=> ' + utils.flattenPath(self.pathSubstitution(inPath)));
+                logger.added('+ ' + utils.flattenPath(inPath) + ' <=> ' + utils.flattenPath(self.pathSubstitution(inPath)));
               });
-            });
-            break;
-          case 'unlink':
-          case 'unlinkDir':
-            fse.remove(self.pathSubstitution(inPath), function(err) {
-              if (err) {
-                return fseError(err);
-              }
-              logger.unlinked('- ' + utils.flattenPath(inPath) + ' <=> ' + utils.flattenPath(self.pathSubstitution(inPath)));
-            });
-            break;
-          default:
-            logger.log('-> ' + evt + ' ' + inPath);
-        }
-      })
+            }
+          });
+          self.initialScanCount++;
+          break;
+        case 'change':
+          fs.stat(self.pathSubstitution(inPath), function(errStat, statsFs) {
+            if (errStat) {
+              return fseError(errStat);
+            }
+
+            if (statsFs.size !== statsWatch.size) {
+              fse.readFile(inPath, 'utf8', function (errRead, data) {
+                if (errRead) {
+                  return fseError(errRead);
+                }
+                fse.outputFile(self.pathSubstitution(inPath), data, function (errOut) {
+                  if (errOut) {
+                    return fseError(errOut);
+                  }
+                  logger.changed('* ' + utils.flattenPath(inPath) + ' <=> ' + utils.flattenPath(self.pathSubstitution(inPath)));
+                });
+              });
+            }
+          });
+          self.initialScanCount++;
+          break;
+        case 'unlink':
+        case 'unlinkDir':
+          pathExists(self.pathSubstitution(inPath), function(errPath, isExists) {
+            if (errPath) {
+              return fseError(errPath);
+            }
+
+            if (isExists) {
+              fse.remove(self.pathSubstitution(inPath), function (errRemove) {
+                if (errRemove) {
+                  return fseError(errRemove);
+                }
+                logger.unlinked('- ' + utils.flattenPath(inPath) + ' <=> ' + utils.flattenPath(self.pathSubstitution(inPath)));
+              });
+            }
+          });
+          self.initialScanCount++;
+          break;
+        default:
+          logger.log('-> ' + evt + ' ' + inPath);
+      }
+      if (self.showInitialScanCounter) {
+        logger.welcome('Scanning "' + utils.flattenPath(inPath) + '": ' + self.initialScanCount + '...');
+      }
+    })
     .on('ready', function() {
       logger.welcome('Initial scan complete, watching "' + self.source + '" ...');
+      self.showInitialScanCounter = false;
+      if (typeof onReady === 'function') {
+        onReady();
+      }
     })
     .on('error', function(err) {
       logger.error(err);
@@ -114,11 +152,18 @@ function Synchronizer(source, destination, ignored, ignoreInitialFire) {
   init();
 }
 
-module.exports.watch = function(source, destination, ignored) {
-  fse.emptyDir(destination, function(err) {
-    if (!err) {
-      (new Synchronizer(source, destination, ignored)).watch();
-      (new Synchronizer(destination, source, ignored, true)).watch();
-    }
+/**
+ *
+ * @param source
+ * @param destination
+ * @param ignoredSource
+ * @param ignoredDestination
+ */
+module.exports.watch = function(source, destination, ignoredSource, ignoredDestination) {
+  if (ignoredDestination === undefined) {
+    ignoredDestination = ignoredSource;
+  }
+  (new Synchronizer(source, destination, ignoredSource)).watch(function() {
+    (new Synchronizer(destination, source, ignoredDestination)).watch();
   });
 };
