@@ -1,17 +1,17 @@
 {
-  "name": "bisynch-files",
+  "name": "bisync-files",
   "version": "0.1.0",
   "description": "Bidirectional files synch nodejs plugin",
-  "main": "src/bisynch-files.js",
+  "main": "src/bisync-files.js",
   "bin": {
-    "bisynch-files": "bin/bisynch-files.js"
+    "bisync-files": "bin/bisync-files.js"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/likerRr/bisynch-files.git"
+    "url": "git+https://github.com/likerRr/bisync-files.git"
   },
   "keywords": [
     "watch",
@@ -25,9 +25,9 @@
   "author": "Alexey Lizurchik",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/likerRr/bisynch-files/issues"
+    "url": "https://github.com/likerRr/bisync-files/issues"
   },
-  "homepage": "https://github.com/likerRr/bisynch-files#readme",
+  "homepage": "https://github.com/likerRr/bisync-files#readme",
   "dependencies": {
     "chalk": "^1.1.0",
     "chokidar": "^1.0.5",

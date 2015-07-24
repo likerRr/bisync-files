@@ -1,2 +1,2 @@
-# two-way-files-synch
-Two-way files synch nodejs plugin
+# Bidirectional files synchronization
+nodejs plugin
