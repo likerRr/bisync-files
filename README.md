@@ -4,6 +4,8 @@ reverse direction. So in result you will have two mirrored folders.
 
 **Please, note, that it is very preview alpha version.**
 
+![](preview.gif)
+
 # How to use
 `npm install bisync-files`
 
@@ -11,10 +13,13 @@ Create `test.js` file, add few lines of code:
 
 ```javascript
 var bisyncFiles = require('bisync-files');
-bisyncFiles.watch('srcPath', 'destPath');
+bisyncFiles.watch('srcPath', 'destPath', [/ignoredInSource/], [/ignoredInDestination/]);
 ```
 
 Run `node test.js`
+
+# Example
+There is already built-in example. Type `node ./relative_path_to_module/example/start_sync` to run. After that you will find two new folders `ex_dir1` and `ex_dir2`, that are two-way synchronizing.
 
 # API
 `watch(source, destination, ignoredSource, ignoredDestination)` - start watching for changes in both directories and 
