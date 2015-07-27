@@ -1,6 +1,6 @@
 {
   "name": "bisync-files",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Bidirectional files synch nodejs plugin",
   "main": "src/bisync-files.js",
   "bin": {
